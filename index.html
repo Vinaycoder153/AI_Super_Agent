@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>College Event Management — Starter</title>
+  <!-- Tailwind Play CDN for quick styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen p-6 bg-gradient-to-br from-slate-900 via-indigo-900 to-teal-900 text-white font-sans">
+  <header class="mb-6">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="rounded-full w-12 h-12 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-emerald-400 font-bold text-black">CEM</div>
+        <div>
+          <h1 class="text-2xl font-semibold">College Event Manager</h1>
+          <p class="text-sm text-slate-300">Organize hackathons, workshops & more — quick demo (frontend-only)</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <label class="text-sm text-slate-300">Role</label>
+        <select id="roleSelect" class="bg-transparent border border-slate-700 px-3 py-2 rounded-md text-white" disabled>
+          <option value="Student">Student</option>
+          <option value="Organizer">Organizer</option>
+          <option value="Admin">Admin</option>
+        </select>
+
+        <label class="text-sm text-slate-300 ml-4">Language</label>
+        <select id="langSelect" class="bg-transparent border border-slate-700 px-3 py-2 rounded-md text-white">
+          <option value="en">English</option>
+          <option value="hi">Hindi</option>
+          <option value="kn">Kannada</option>
+        </select>
+
+        <button id="profileBtn" class="ml-2 px-4 py-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md font-medium shadow-lg">My Profile</button>
+        <button onclick="logout()" class="ml-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-md font-medium">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left column: Stats & Controls -->
+    <section class="lg:col-span-1 space-y-6">
+      <div class="glass p-4 rounded-2xl neumo">
+        <h2 class="text-lg font-semibold mb-2">Quick Stats</h2>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="p-3 rounded-xl bg-gradient-to-br from-slate-800 to-slate-700 text-center">
+            <div id="statEvents" class="text-2xl font-bold">0</div>
+            <div class="text-xs text-slate-300">Events</div>
+          </div>
+          <div class="p-3 rounded-xl bg-gradient-to-br from-slate-800 to-slate-700 text-center">
+            <div id="statParticipants" class="text-2xl font-bold">0</div>
+            <div class="text-xs text-slate-300">Participants</div>
+          </div>
+          <div class="p-3 rounded-xl bg-gradient-to-br from-slate-800 to-slate-700 text-center">
+            <div id="statRewards" class="text-2xl font-bold">0</div>
+            <div class="text-xs text-slate-300">Rewards</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="organizerControls" class="glass p-4 rounded-2xl neumo hidden">
+        <h3 class="font-semibold mb-3">Organizer</h3>
+        <button id="createEventBtn" class="w-full py-2 rounded-md bg-gradient-to-br from-emerald-400 to-indigo-500 text-black font-semibold">Create New Event</button>
+        <p class="text-xs text-slate-300 mt-2">Events you create will be pending approval until an admin approves them (demo).</p>
+      </div>
+
+      <div id="adminControls" class="glass p-4 rounded-2xl neumo hidden">
+        <h3 class="font-semibold mb-3">Admin</h3>
+        <p class="text-sm text-slate-300">Approve pending events and mark events completed to distribute rewards.</p>
+      </div>
+
+      <div class="glass p-4 rounded-2xl neumo">
+        <h3 class="font-semibold mb-3">Leaderboard</h3>
+        <ol id="leaderboard" class="list-decimal list-inside text-sm space-y-2 text-slate-200"></ol>
+      </div>
+    </section>
+
+    <!-- Middle column: Event list -->
+    <section class="lg:col-span-2 space-y-6">
+      <div class="glass p-4 rounded-2xl neumo">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold">Upcoming & Ongoing Events</h2>
+          <div>
+            <input id="searchInput" aria-label="Search events" placeholder="Search events..." class="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-sm" />
+          </div>
+        </div>
+
+        <div id="eventsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+
+      <div class="glass p-4 rounded-2xl neumo">
+        <h2 class="text-lg font-semibold mb-3">My Registrations</h2>
+        <div id="myRegistrations" class="space-y-3 text-sm text-slate-200"></div>
+      </div>
+
+      <div class="glass p-4 rounded-2xl neumo">
+        <h2 class="text-lg font-semibold mb-3">Rewards & Badges</h2>
+        <div id="rewardsPanel" class="space-y-3 text-sm text-slate-200"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modals -->
+  <div id="modalRoot"></div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script type="module" src="firebase.js"></script>
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const ROLE_WHITELIST = {
+      Admin: [
+        // add allowed admin emails here
+      ],
+      Organizer: [
+        "vvvinay5630@gmail.com",
+        "sathwikgowdaph@gmail.com"
+      ]
+    };
+
+    window.__APP_CONTEXT__ = { currentUser: null, role: 'Student' };
+
+    function setRole(role) {
+      window.__APP_CONTEXT__.role = role || 'Student';
+      const select = document.getElementById('roleSelect');
+      if (select) select.value = window.__APP_CONTEXT__.role;
+    }
+
+    function applyRoleGuard(email, desiredRole) {
+      if (desiredRole === 'Admin') {
+        if (!ROLE_WHITELIST.Admin.includes(email)) return 'Student';
+      }
+      if (desiredRole === 'Organizer') {
+        if (!ROLE_WHITELIST.Organizer.includes(email)) return 'Student';
+      }
+      return desiredRole || 'Student';
+    }
+
+    function showApp(show) {
+      document.documentElement.style.visibility = show ? 'visible' : 'hidden';
+    }
+
+    showApp(false);
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      window.__APP_CONTEXT__.currentUser = user;
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        const data = snap.exists() ? snap.data() : { role: 'Student' };
+        const guardedRole = applyRoleGuard(user.email || '', (data.role || 'Student').replace(/^\w/, c => c.toUpperCase()));
+        setRole(guardedRole);
+      } catch (e) {
+        setRole('Student');
+      }
+      showApp(true);
+    });
+
+    window.logout = async function () {
+      try { await signOut(auth); } finally { window.location.href = 'login.html'; }
+    }
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>
